@@ -1,0 +1,74 @@
+name: Build & Release MSTRD
+
+on:
+  push:
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-13, windows-latest]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up CMake
+      uses: jwlawson/actions-setup-cmake@v1.14
+
+    - name: Build macOS (AU & VST3)
+      if: runner.os == 'macOS'
+      run: |
+        cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+        cmake --build build --config Release --parallel
+        cd build
+        cpack -G productbuild
+
+    - name: Build Windows (VST3)
+      if: runner.os == 'Windows'
+      run: |
+        cmake -B build -G "Visual Studio 17 2022" -A x64
+        cmake --build build --config Release --parallel
+        cd build
+        cpack -G ZIP
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: MSTRD-${{ runner.os }}
+        path: |
+          build/*.pkg
+          build/*.zip
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+
+    - name: Display structure of downloaded files
+      run: ls -R artifacts
+
+    - name: Create Release in Public Repo
+      uses: ncipollo/release-action@v1
+      with:
+        artifacts: "artifacts/*/*"
+        token: ${{ secrets.PUBLIC_REPO_TOKEN }}
+        repo: "Public-MSTRD-Repo" # Replace with your actual public repository name!
+        owner: ${{ github.repository_owner }}
+        name: Release ${{ github.ref_name }}
+        tag: ${{ github.ref_name }}
+        body: |
+          ## MSTRD Plugin
+          
+          Download the latest installers for macOS and Windows below.
+          
+          *Note for macOS users: Since this software is not currently signed with an Apple Developer ID, you may need to right-click the installer and select "Open" to bypass Gatekeeper, or remove the quarantine flag manually.*
+        draft: false
+        prerelease: false
