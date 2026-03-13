@@ -60,7 +60,7 @@ jobs:
       with:
         artifacts: "artifacts/*/*"
         token: ${{ secrets.PUBLIC_REPO_TOKEN }}
-        repo: "Public-MSTRD-Repo" # Replace with your actual public repository name!
+        repo: "MSTRD-Plugin-" 
         owner: ${{ github.repository_owner }}
         name: Release ${{ github.ref_name }}
         tag: ${{ github.ref_name }}
